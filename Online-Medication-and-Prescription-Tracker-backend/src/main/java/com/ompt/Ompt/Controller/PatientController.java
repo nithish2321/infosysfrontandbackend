@@ -3,6 +3,7 @@ package com.ompt.Ompt.Controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ompt.Ompt.DTO.AssignMedicineRequestDTO;
 import com.ompt.Ompt.DTO.DeliveryUpdateDTO;
+import com.ompt.Ompt.DTO.DoctorRatingRequestDTO;
 import com.ompt.Ompt.DTO.MedicineStatusUpdateDTO;
 import com.ompt.Ompt.model.Role;
 import com.ompt.Ompt.model.User;
@@ -93,5 +94,15 @@ public class PatientController {
         User patient = userRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
         return ResponseEntity.ok(patientRecordService.updateDeliveryStatus(patient, medicineId, request.getStatus()));
+    }
+
+    @PostMapping("/doctor-rating")
+    public ResponseEntity<JsonNode> rateDoctor(
+            @Valid @RequestBody DoctorRatingRequestDTO request,
+            Authentication authentication
+    ) {
+        User patient = userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+        return ResponseEntity.ok(patientRecordService.rateDoctor(patient, request));
     }
 }

@@ -59,7 +59,7 @@ const DoctorDashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-800">Tracking Dashboard</h1>
-          <p className="text-slate-500">Monitor adherence & interventions</p>
+          <p className="text-slate-500">Welcome, Dr. {user.name} - monitor adherence & interventions</p>
         </div>
         
         {/* KPI CARDS */}
@@ -147,11 +147,31 @@ const DoctorDashboard = () => {
              {/* Meds Summary */}
              <div className="pl-4 mb-6">
                 <div className="flex flex-wrap gap-2">
-                   {patient.medicines.map(med => (
-                      <span key={med.id} className="px-3 py-1 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold border border-slate-100 flex items-center gap-1">
-                         <Pill size={12}/> {med.name}
-                      </span>
-                   ))}
+                   {patient.medicines.map(med => {
+                      const deliveryBadge =
+                        med.deliveryStatus === "delivered"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-orange-100 text-orange-700";
+
+                      return (
+                        <span
+                          key={med.id}
+                          title={
+                            med.pharmacyName
+                              ? `${med.pharmacyName}${med.pharmacyLocation ? ` • ${med.pharmacyLocation}` : ""}`
+                              : undefined
+                          }
+                          className="px-3 py-1 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold border border-slate-100 flex items-center gap-1"
+                        >
+                          <Pill size={12}/> {med.name}
+                          {med.deliveryStatus && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${deliveryBadge}`}>
+                              {med.deliveryStatus}
+                            </span>
+                          )}
+                        </span>
+                      );
+                   })}
                    {patient.medicines.length === 0 && <span className="text-xs text-slate-400 italic">No meds assigned</span>}
                 </div>
              </div>

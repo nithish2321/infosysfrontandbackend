@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface InventoryItemRepository extends JpaRepository<InventoryItem, Long> {
     List<InventoryItem> findByPharmacyOrderByIdDesc(Pharmacy pharmacy);
     Optional<InventoryItem> findByIdAndPharmacy(Long id, Pharmacy pharmacy);
+    List<InventoryItem> findByNameIgnoreCaseAndQuantityGreaterThan(String name, int quantity);
 }

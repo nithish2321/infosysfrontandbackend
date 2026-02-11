@@ -1,6 +1,7 @@
-// src/pages/auth/AuthPage.jsx - COMPLETE FIXED VERSION WITH PHARMACY LOGIN
-import { useState } from "react";
+// src/pages/auth/AuthPage.jsx - COMPLETE FIXED VERSION WITH CONFIRM PASSWORD TOGGLE
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   LogIn, UserPlus, Building2, User, Stethoscope, MapPin, 
   ArrowRight, Check, X, Eye, EyeOff, UserCircle, ArrowLeft 
@@ -12,11 +13,19 @@ import api from "../../api/client";
 const AuthPage = () => {
   const { login, loginPharmacy, registerUser, registerPharmacy, doctors, organizations = [] } = useAppContext();
 
-  const [authMode, setAuthMode] = useState("login"); // login | signup | org_register | pharmacy_register | forgot
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const [authMode, setAuthMode] = useState("login"); // login | signup | org_register | pharmacy_register | forgot | set_password
   const [forgotStep, setForgotStep] = useState(1); // 1=email, 2=code, 3=new password
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotCode, setForgotCode] = useState("");
+  
+  // Visibility States
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Added state for confirm password
+  
+  const [setPasswordToken, setSetPasswordToken] = useState("");
 
   const { 
     register,
@@ -29,8 +38,48 @@ const AuthPage = () => {
   // Watchers for Validation
   const password = watch("password", "");
   const newPassword = watch("newPassword", "");
-  const activePassword = authMode === "forgot" && forgotStep === 3 ? newPassword : password;
+  const activePassword =
+    authMode === "set_password" || (authMode === "forgot" && forgotStep === 3)
+      ? newPassword
+      : password;
   const role = watch("role", "Patient");
+  const tokenFromUrl = searchParams.get("token");
+
+  useEffect(() => {
+    if (tokenFromUrl) {
+      setSetPasswordToken(tokenFromUrl);
+      setAuthMode("set_password");
+      setForgotStep(1);
+      setForgotEmail("");
+      setForgotCode("");
+      reset({ newPassword: "", confirmNewPassword: "" });
+    } else if (authMode === "set_password") {
+      setAuthMode("login");
+    }
+  }, [authMode, reset, tokenFromUrl]);
+
+  const clearTokenFromUrl = () => {
+    setSetPasswordToken("");
+    if (tokenFromUrl) {
+      navigate("/", { replace: true });
+    }
+  };
+
+  const switchAuthMode = (nextMode) => {
+    setAuthMode(nextMode);
+    setForgotStep(1);
+    setForgotEmail("");
+    setForgotCode("");
+    clearTokenFromUrl();
+    reset();
+    setShowPassword(false);
+    setShowConfirmPassword(false); // Reset visibility on mode switch
+  };
+
+  const applyDemoCredentials = (email, password) => {
+    switchAuthMode("login");
+    reset({ email, password });
+  };
 
   // Password Strength Logic
   const passwordRequirements = [
@@ -54,6 +103,23 @@ const AuthPage = () => {
         toast.error("Invalid credentials.");
       } else {
         toast.success("Welcome back!");
+      }
+    } else if (authMode === "set_password") {
+      try {
+        if (!setPasswordToken) {
+          toast.error("Invalid or missing password token.");
+          return;
+        }
+        await api.post("/auth/set-password", {
+          token: setPasswordToken,
+          newPassword: data.newPassword,
+        });
+        toast.success("Password set successfully. Please sign in.");
+        setAuthMode("login");
+        clearTokenFromUrl();
+        reset();
+      } catch (error) {
+        toast.error(error?.response?.data?.error || "Unable to set password.");
       }
     } else if (authMode === "forgot") {
       try {
@@ -130,6 +196,7 @@ const AuthPage = () => {
             <h2 className="text-2xl font-bold mb-4 text-slate-300">
               {authMode === "org_register" ? "For Healthcare Providers" :
                authMode === "pharmacy_register" ? "For Pharmacies" :
+               authMode === "set_password" ? "Activate Your Account" :
                authMode === "forgot" ? "Account Recovery" : "For Patients & Doctors"}
             </h2>
 
@@ -138,6 +205,8 @@ const AuthPage = () => {
                 ? "Register your hospital to manage staff, patients, and inventory in one unified dashboard."
                 : authMode === "pharmacy_register"
                 ? "Register your pharmacy to manage medicine inventory, stock, and patient prescriptions."
+                : authMode === "set_password"
+                ? "Set a secure password to activate your doctor account and continue."
                 : authMode === "forgot"
                 ? forgotStep === 1
                   ? "Enter your email to receive a verification code."
@@ -152,15 +221,15 @@ const AuthPage = () => {
           {/* Mode Switchers */}
           <div className="relative z-10 mt-12 space-y-3">
             <button 
-              onClick={() => { setAuthMode("login"); reset(); }} 
-              className={`w-full text-left p-4 rounded-xl transition flex items-center gap-3 ${authMode === "login" || authMode === "forgot" ? "bg-white/10 border border-white/20" : "hover:bg-white/5"}`}
+              onClick={() => switchAuthMode("login")} 
+              className={`w-full text-left p-4 rounded-xl transition flex items-center gap-3 ${authMode === "login" || authMode === "forgot" || authMode === "set_password" ? "bg-white/10 border border-white/20" : "hover:bg-white/5"}`}
             >
               <div className="bg-teal-500 p-2 rounded-lg"><LogIn size={16}/></div>
               <div><p className="font-bold text-sm">Sign In</p><p className="text-xs text-slate-400">Access your dashboard</p></div>
             </button>
 
             <button 
-              onClick={() => { setAuthMode("signup"); reset(); }} 
+              onClick={() => switchAuthMode("signup")} 
               className={`w-full text-left p-4 rounded-xl transition flex items-center gap-3 ${authMode === "signup" ? "bg-white/10 border border-white/20" : "hover:bg-white/5"}`}
             >
               <div className="bg-purple-500 p-2 rounded-lg"><UserPlus size={16}/></div>
@@ -168,7 +237,7 @@ const AuthPage = () => {
             </button>
 
             <button 
-              onClick={() => { setAuthMode("org_register"); reset(); }} 
+              onClick={() => switchAuthMode("org_register")} 
               className={`w-full text-left p-4 rounded-xl transition flex items-center gap-3 ${authMode === "org_register" ? "bg-white/10 border border-white/20" : "hover:bg-white/5"}`}
             >
               <div className="bg-orange-500 p-2 rounded-lg"><Building2 size={16}/></div>
@@ -176,7 +245,7 @@ const AuthPage = () => {
             </button>
 
             <button 
-              onClick={() => { setAuthMode("pharmacy_register"); reset(); }} 
+              onClick={() => switchAuthMode("pharmacy_register")} 
               className={`w-full text-left p-4 rounded-xl transition flex items-center gap-3 ${authMode === "pharmacy_register" ? "bg-white/10 border border-white/20" : "hover:bg-white/5"}`}
             >
               <div className="bg-indigo-500 p-2 rounded-lg"><Building2 size={16}/></div>
@@ -195,6 +264,7 @@ const AuthPage = () => {
               {authMode === "signup" && "Create Account"}
               {authMode === "org_register" && "Register Organization"}
               {authMode === "pharmacy_register" && "Register Pharmacy"}
+              {authMode === "set_password" && "Set Your Password"}
               {authMode === "forgot" && "Forgot Password?"}
             </h2>
 
@@ -313,15 +383,17 @@ const AuthPage = () => {
               )}
 
               {/* EMAIL - ALWAYS SHOWN */}
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email Address</label>
-                <input 
-                  {...register("email", { required: "Email is required" })} 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-teal-500 mt-1" 
-                  placeholder="name@example.com"
-                />
-                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
-              </div>
+              {authMode !== "set_password" && (
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email Address</label>
+                  <input 
+                    {...register("email", { required: "Email is required" })} 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-teal-500 mt-1" 
+                    placeholder="name@example.com"
+                  />
+                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
+                </div>
+              )}
 
               {/* FORGOT PASSWORD CODE INPUT */}
               {authMode === "forgot" && forgotStep === 2 && (
@@ -337,14 +409,14 @@ const AuthPage = () => {
               )}
 
               {/* PASSWORD */}
-              {authMode !== "forgot" && (
+              {authMode !== "forgot" && authMode !== "set_password" && (
                 <div>
                   <div className="flex justify-between">
                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
                     {authMode === "login" && (
                       <button 
                         type="button" 
-                        onClick={() => { setAuthMode("forgot"); reset(); }} 
+                        onClick={() => switchAuthMode("forgot")} 
                         className="text-xs font-bold text-teal-600 hover:underline"
                       >
                         Forgot Password?
@@ -371,7 +443,7 @@ const AuthPage = () => {
               )}
 
               {/* FORGOT PASSWORD - NEW PASSWORD */}
-              {authMode === "forgot" && forgotStep === 3 && (
+              {(authMode === "forgot" && forgotStep === 3) || authMode === "set_password" ? (
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase ml-1">New Password</label>
                   <div className="relative mt-1">
@@ -391,10 +463,10 @@ const AuthPage = () => {
                   </div>
                   {errors.newPassword && <p className="text-xs text-red-500 mt-1">{errors.newPassword.message}</p>}
                 </div>
-              )}
+              ) : null}
 
               {/* PASSWORD STRENGTH */}
-              {(authMode === "signup" || authMode === "org_register" || authMode === "pharmacy_register" || (authMode === "forgot" && forgotStep === 3)) && (
+              {(authMode === "signup" || authMode === "org_register" || authMode === "pharmacy_register" || authMode === "set_password" || (authMode === "forgot" && forgotStep === 3)) && (
                 <div className="grid grid-cols-2 gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                   {passwordRequirements.map((req, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -405,18 +477,27 @@ const AuthPage = () => {
                 </div>
               )}
 
-              {/* CONFIRM PASSWORD */}
-              {(authMode === "signup" || authMode === "org_register" || authMode === "pharmacy_register" || (authMode === "forgot" && forgotStep === 3)) && (
+              {/* CONFIRM PASSWORD - UPDATED WITH TOGGLE */}
+              {(authMode === "signup" || authMode === "org_register" || authMode === "pharmacy_register" || authMode === "set_password" || (authMode === "forgot" && forgotStep === 3)) && (
                 <div className="animate-slide-down">
                   <label className="text-xs font-bold text-slate-500 uppercase ml-1">Confirm Password</label>
-                  <input
-                    type="password"
-                    {...register(authMode === "forgot" ? "confirmNewPassword" : "confirmPassword", {
-                      validate: val => val === (authMode === "forgot" ? newPassword : password) || "Passwords do not match"
-                    })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-teal-500 mt-1"
-                    placeholder="••••••••"
-                  />
+                  <div className="relative mt-1">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      {...register(authMode === "forgot" || authMode === "set_password" ? "confirmNewPassword" : "confirmPassword", {
+                        validate: val => val === (authMode === "forgot" || authMode === "set_password" ? newPassword : password) || "Passwords do not match"
+                      })}
+                      className="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-teal-500"
+                      placeholder="••••••••"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                    </button>
+                  </div>
                   {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword.message}</p>}
                   {errors.confirmNewPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmNewPassword.message}</p>}
                 </div>
@@ -427,6 +508,7 @@ const AuthPage = () => {
                 className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-200/50 transition mt-4 flex justify-center items-center gap-2"
               >
                 {authMode === "login" ? "Access Dashboard" :
+                 authMode === "set_password" ? "Set Password" :
                  authMode === "forgot" ? (
                    forgotStep === 1 ? "Send Verification Code" :
                    forgotStep === 2 ? "Verify Code" : "Reset Password"
@@ -434,10 +516,10 @@ const AuthPage = () => {
                 <ArrowRight size={18}/>
               </button>
 
-              {authMode === "forgot" && (
+              {(authMode === "forgot" || authMode === "set_password") && (
                 <button 
                   type="button" 
-                  onClick={() => { setAuthMode("login"); setForgotStep(1); setForgotEmail(""); setForgotCode(""); reset(); }} 
+                  onClick={() => switchAuthMode("login")} 
                   className="w-full py-3 mt-2 text-slate-500 font-bold hover:text-slate-800 flex justify-center items-center gap-2"
                 >
                   <ArrowLeft size={16}/> Back to Login
@@ -445,7 +527,41 @@ const AuthPage = () => {
               )}
             </form>
 
-            {/* Demo access removed for DB-only setup */}
+            {authMode === "login" && (
+              <div className="mt-6 border-t border-slate-100 pt-5">
+                <p className="text-xs font-bold text-slate-500 uppercase mb-3">Demo Access</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyDemoCredentials("demo.admin@ompt.test", "Pass@1234")}
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:border-teal-400 hover:text-teal-700 transition"
+                  >
+                    Admin Demo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDemoCredentials("demo.doctor1@ompt.test", "Pass@1234")}
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:border-teal-400 hover:text-teal-700 transition"
+                  >
+                    Doctor Demo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDemoCredentials("demo.patient1@ompt.test", "Pass@1234")}
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:border-teal-400 hover:text-teal-700 transition"
+                  >
+                    Patient Demo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDemoCredentials("demo.pharmacy@ompt.test", "Pass@1234")}
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:border-teal-400 hover:text-teal-700 transition"
+                  >
+                    Pharmacy Demo
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

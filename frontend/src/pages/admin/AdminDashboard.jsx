@@ -94,7 +94,11 @@ const AdminDashboard = () => {
 
       {/* DOCTOR GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDoctors.map((doc) => (
+        {filteredDoctors.map((doc) => {
+          const ratingValue = Number(doc?.performance?.rating || 0).toFixed(1);
+          const ratingCount = doc?.performance?.ratingCount || 0;
+
+          return (
           <div 
             key={doc.id}
             onClick={() => setSelectedDoctor(doc)}
@@ -122,10 +126,11 @@ const AdminDashboard = () => {
             
             <div className="pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-400 font-bold uppercase">
                <span>{doc.employment.department}</span>
-               <span>Rating: {doc.performance.rating}</span>
+               <span>Rating: {ratingValue}{ratingCount > 0 ? ` (${ratingCount})` : ""}</span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

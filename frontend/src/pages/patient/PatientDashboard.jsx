@@ -1,6 +1,6 @@
 // src/pages/patient/PatientDashboard.jsx
 import { useState } from "react";
-import { Clock, CheckCircle2, AlertCircle, Calendar, Truck, PackageCheck } from "lucide-react"; // Added Truck, PackageCheck
+import { Clock, CheckCircle2, AlertCircle, Calendar, Truck, PackageCheck, Star } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import { toast } from "react-hot-toast";
 import TakeMedicineModal from "../../components/patient/TakeMedicineModal";
@@ -8,11 +8,43 @@ import MissedReasonModal from "../../components/patient/MissedReasonModal";
 
 const PatientDashboard = () => {
   // Added markMedicineDelivered from context
-  const { user, patients, updateMedicineStatus, markMedicineDelivered } = useAppContext();
+  const { user, patients, doctors, updateMedicineStatus, markMedicineDelivered, rateDoctor } = useAppContext();
   
   const myData = patients.find(p => p.id === user.id);
   const [activeTask, setActiveTask] = useState(null); 
   const [showReason, setShowReason] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+
+  const assignedDoctor = doctors.find(d => d.id === myData?.doctorAssignedId);
+  const averageRating = Number(assignedDoctor?.performance?.rating || 0).toFixed(1);
+  const ratingCount = assignedDoctor?.performance?.ratingCount || 0;
+
+  const formatPrice = (value) => {
+    const numberValue = Number(value);
+    if (value === null || value === undefined || Number.isNaN(numberValue)) {
+      return "N/A";
+    }
+    return `$${numberValue.toFixed(2)}`;
+  };
+
+  const handleRateDoctor = async (value) => {
+    if (!assignedDoctor) {
+      toast.error("No doctor assigned yet.");
+      return;
+    }
+    try {
+      setRatingSubmitting(true);
+      await rateDoctor({ doctorId: assignedDoctor.id, rating: value });
+      setRatingValue(value);
+      toast.success(`Thanks for rating Dr. ${assignedDoctor.personal.fullName}`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || "Failed to submit rating");
+    } finally {
+      setRatingSubmitting(false);
+    }
+  };
 
   // --- NEW: DELIVERY CONFIRMATION HANDLER ---
   const handleConfirmDelivery = async (medicineId) => {
@@ -67,6 +99,54 @@ const PatientDashboard = () => {
         <Clock className="absolute right-[-20px] top-[-20px] opacity-20" size={200} />
       </div>
 
+      {/* Assigned Doctor & Rating */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+        {assignedDoctor ? (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase">Assigned Doctor</p>
+              <h3 className="text-xl font-black text-slate-800">{assignedDoctor.personal.fullName}</h3>
+              <p className="text-sm text-slate-500">{assignedDoctor.qualifications.specialization}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Current Rating: <span className="font-bold text-slate-600">{averageRating}</span>
+                {ratingCount > 0 && <span className="ml-2">({ratingCount} ratings)</span>}
+              </p>
+            </div>
+            <div className="text-left md:text-right">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-2">Rate Your Doctor</p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    disabled={ratingSubmitting}
+                    onMouseEnter={() => setRatingHover(star)}
+                    onMouseLeave={() => setRatingHover(0)}
+                    onClick={() => handleRateDoctor(star)}
+                    className="p-1 rounded-md hover:bg-slate-50 transition disabled:opacity-50"
+                    aria-label={`Rate ${star} star`}
+                  >
+                    <Star
+                      size={20}
+                      fill={(ratingHover || ratingValue) >= star ? "currentColor" : "none"}
+                      className={
+                        (ratingHover || ratingValue) >= star
+                          ? "text-yellow-400"
+                          : "text-slate-300"
+                      }
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500 font-semibold">
+            No assigned doctor yet. Please contact the hospital for assignment.
+          </div>
+        )}
+      </div>
+
       {/* --- NEW: DELIVERY PENDING SECTION --- */}
   {myData?.medicines?.some(m => m.deliveryStatus === 'pending') && (
         <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 shadow-sm">
@@ -78,7 +158,10 @@ const PatientDashboard = () => {
                     <div key={med.id} className="bg-white p-4 rounded-xl flex justify-between items-center shadow-sm">
                         <div>
                             <p className="font-bold text-slate-800">{med.name}</p>
-                            <p className="text-xs text-slate-500">Sent from Pharmacy</p>
+                            <p className="text-xs text-slate-500">
+                              From {med.pharmacyName || "Pharmacy"}{med.pharmacyLocation ? ` • ${med.pharmacyLocation}` : ""}
+                            </p>
+                            <p className="text-xs text-slate-500">Price: {formatPrice(med.price)}</p>
                         </div>
                         <button 
                             onClick={() => handleConfirmDelivery(med.id)}
@@ -117,6 +200,15 @@ const PatientDashboard = () => {
                         )}
                     </h3>
                     <p className="text-sm text-slate-500 font-medium">{med.dosage} • {med.instructions}</p>
+                    <div className="text-xs text-slate-500 mt-2 space-y-1">
+                      <p>
+                        <span className="font-semibold text-slate-600">Pharmacy:</span>{" "}
+                        {med.pharmacyName || "N/A"}{med.pharmacyLocation ? ` • ${med.pharmacyLocation}` : ""}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-600">Price:</span> {formatPrice(med.price)}
+                      </p>
+                    </div>
                   </div>
                   <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                     {med.type}

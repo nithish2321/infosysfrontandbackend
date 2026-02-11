@@ -93,6 +93,27 @@ public class PharmacyService {
                 .toList();
     }
 
+    public List<PharmacyAvailabilityDTO> listAvailability(String medicineName) {
+        if (medicineName == null || medicineName.isBlank()) {
+            return List.of();
+        }
+
+        return inventoryItemRepository
+                .findByNameIgnoreCaseAndQuantityGreaterThan(medicineName.trim(), 0)
+                .stream()
+                .map(item -> new PharmacyAvailabilityDTO(
+                        item.getId(),
+                        item.getName(),
+                        item.getDosage(),
+                        item.getQuantity(),
+                        item.getPrice(),
+                        item.getPharmacy().getId(),
+                        item.getPharmacy().getPharmacyName(),
+                        item.getPharmacy().getLocation()
+                ))
+                .toList();
+    }
+
     public InventoryItemResponseDTO createInventoryItem(String email, InventoryItemRequestDTO request) {
         Pharmacy pharmacy = getPharmacyByEmail(email);
 

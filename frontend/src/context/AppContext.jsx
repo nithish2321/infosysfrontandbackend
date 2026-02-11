@@ -298,17 +298,35 @@ export const AppProvider = ({ children }) => {
     return response.data;
   };
 
+  const fetchPharmacyAvailability = async (medicineName) => {
+    if (!medicineName) return [];
+    const response = await api.get("/api/doctor/pharmacies/availability", {
+      params: { medicineName },
+    });
+    return response.data || [];
+  };
+
   const assignMedicine = async (patientId, newMedicine) => {
     const payload = {
       name: newMedicine.name,
       dosage: newMedicine.dosage,
       type: newMedicine.type,
       instructions: newMedicine.instructions,
+      inventoryItemId: newMedicine.inventoryItemId,
       scheduleTimes: newMedicine.schedule?.map((slot) => slot.time) || [],
     };
 
     const response = await api.post(`/api/patients/${patientId}/medicines`, payload);
     setPatients((prev) => prev.map((p) => (p.id === patientId ? response.data : p)));
+    return response.data;
+  };
+
+  const rateDoctor = async (payload) => {
+    const response = await api.post("/api/patients/doctor-rating", payload);
+    const updatedDoctor = response.data;
+    if (updatedDoctor?.id) {
+      setDoctors((prev) => prev.map((doc) => (doc.id === updatedDoctor.id ? updatedDoctor : doc)));
+    }
     return response.data;
   };
 
@@ -356,8 +374,10 @@ export const AppProvider = ({ children }) => {
         updateInventoryItem,
         deleteInventoryItem,
         fetchPharmacyDeliveries,
+        fetchPharmacyAvailability,
         assignMedicine,          // 🆕 Updated Logic
         markMedicineDelivered,   // 🆕 Exported
+        rateDoctor,
         updateMedicineStatus,
       }}
     >

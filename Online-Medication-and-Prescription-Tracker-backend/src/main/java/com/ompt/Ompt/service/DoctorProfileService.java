@@ -10,6 +10,7 @@ import com.ompt.Ompt.model.AccountStatus;
 import com.ompt.Ompt.model.Role;
 import com.ompt.Ompt.model.User;
 import com.ompt.Ompt.repository.DoctorProfileRepository;
+import com.ompt.Ompt.repository.HospitalRepository;
 import com.ompt.Ompt.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ public class DoctorProfileService {
 
     private final DoctorProfileRepository doctorProfileRepository;
     private final UserRepository userRepository;
+    private final HospitalRepository hospitalRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
@@ -40,8 +42,14 @@ public class DoctorProfileService {
                 .findByUser(doctor)
                 .orElseGet(() -> createProfile(doctor, buildDoctorTemplate(doctor.getId(), doctor.getName(), doctor.getEmail())));
         ObjectNode data = parseObject(profile.getProfileJson());
-        data.put("hospitalId", doctor.getHospital().getId());
-        data.put("hospitalName", doctor.getHospital().getName());
+        Hospital hospital = resolveHospital(doctor);
+        if (hospital != null) {
+            data.put("hospitalId", hospital.getId());
+            data.put("hospitalName", hospital.getName());
+        } else {
+            data.putNull("hospitalId");
+            data.putNull("hospitalName");
+        }
         return data;
     }
 
@@ -134,8 +142,14 @@ public class DoctorProfileService {
     private ObjectNode normalizeProfile(JsonNode profileJson, User doctor) {
         ObjectNode normalized = profileJson.deepCopy();
         normalized.put("id", doctor.getId());
-        normalized.put("hospitalId", doctor.getHospital().getId());
-        normalized.put("hospitalName", doctor.getHospital().getName());
+        Hospital hospital = resolveHospital(doctor);
+        if (hospital != null) {
+            normalized.put("hospitalId", hospital.getId());
+            normalized.put("hospitalName", hospital.getName());
+        } else {
+            normalized.putNull("hospitalId");
+            normalized.putNull("hospitalName");
+        }
 
         ObjectNode personal = normalized.with("personal");
         String newName = personal.path("fullName").asText(doctor.getName());
@@ -154,6 +168,17 @@ public class DoctorProfileService {
         personal.put("fullName", doctor.getName());
         personal.put("email", doctor.getEmail());
         return normalized;
+    }
+
+    private Hospital resolveHospital(User doctor) {
+        if (doctor == null || doctor.getHospital() == null) {
+            return null;
+        }
+        Long hospitalId = doctor.getHospital().getId();
+        if (hospitalId == null) {
+            return null;
+        }
+        return hospitalRepository.findById(hospitalId).orElse(null);
     }
 
     private JsonNode parse(String json) {
@@ -219,6 +244,8 @@ public class DoctorProfileService {
 
         ObjectNode performance = root.putObject("performance");
         performance.put("rating", 0);
+        performance.put("ratingCount", 0);
+        performance.put("ratingTotal", 0);
         performance.put("peerReviews", "");
         performance.put("trainingParticipation", "");
 
