@@ -36,6 +36,7 @@ const AdminDashboard = () => {
           onSave={async (doc) => { 
             try {
               await saveDoctorProfile(doc);
+              toast.success("Doctor profile updated successfully");
               setSelectedDoctor(null);
             } catch (error) {
               toast.error(error?.response?.data?.error || "Failed to save doctor profile");

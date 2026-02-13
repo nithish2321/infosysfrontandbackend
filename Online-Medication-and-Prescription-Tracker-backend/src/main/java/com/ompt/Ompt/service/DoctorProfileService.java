@@ -132,6 +132,32 @@ public class DoctorProfileService {
         return normalized;
     }
 
+    public JsonNode getOwnProfile(User doctor) {
+        if (doctor.getRole() != Role.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctor can access doctor profile");
+        }
+        return getOrCreateProfile(doctor);
+    }
+
+    public JsonNode updateOwnProfile(User doctor, JsonNode profileJson) {
+        if (doctor.getRole() != Role.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctor can update doctor profile");
+        }
+
+        ObjectNode incoming = profileJson != null && profileJson.isObject()
+                ? (ObjectNode) profileJson.deepCopy()
+                : objectMapper.createObjectNode();
+        // Keep login identity stable for doctor self-service updates.
+        incoming.with("personal").put("email", doctor.getEmail());
+
+        ObjectNode normalized = normalizeProfile(incoming, doctor);
+        DoctorProfile profile = doctorProfileRepository.findByUser(doctor).orElse(new DoctorProfile());
+        profile.setUser(doctor);
+        profile.setProfileJson(normalized.toString());
+        doctorProfileRepository.save(profile);
+        return normalized;
+    }
+
     private DoctorProfile createProfile(User doctor, ObjectNode data) {
         DoctorProfile profile = new DoctorProfile();
         profile.setUser(doctor);

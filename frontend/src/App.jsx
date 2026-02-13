@@ -17,6 +17,7 @@ import AdminPatients from "./pages/admin/AdminPatients";
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import DoctorStatistics from "./pages/doctor/DoctorStatistics";
+import DoctorProfile from "./pages/doctor/DoctorProfile";
 
 // Patient Pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
@@ -45,6 +46,7 @@ const AppRoutes = () => {
           <>
             <Route path="/" element={<DoctorDashboard />} />
             <Route path="/statistics" element={<DoctorStatistics />} />
+            <Route path="/profile" element={<DoctorProfile />} />
             <Route path="*" element={<Navigate to="/" />} />
           </>
         )}

@@ -14,6 +14,7 @@ export const AppProvider = ({ children }) => {
   const [medicineMaster, setMedicineMaster] = useState([]);
   const [pharmacyInventory, setPharmacyInventory] = useState([]);
   const [pharmacyDeliveries, setPharmacyDeliveries] = useState([]);
+  const [doctorProfile, setDoctorProfile] = useState(null);
 
   // Persistence Effects
   useEffect(() => { 
@@ -97,6 +98,27 @@ export const AppProvider = ({ children }) => {
     return response.data;
   };
 
+  const fetchDoctorProfile = async () => {
+    const response = await api.get("/api/doctor/profile");
+    setDoctorProfile(response.data || null);
+    return response.data;
+  };
+
+  const updateDoctorProfile = async (profile) => {
+    const response = await api.put("/api/doctor/profile", profile);
+    const updated = response.data;
+    setDoctorProfile(updated);
+    setDoctors((prev) => prev.map((doc) => (doc.id === updated.id ? updated : doc)));
+    if (updated?.personal?.fullName || updated?.personal?.email) {
+      setUser((prev) => ({
+        ...prev,
+        name: updated?.personal?.fullName || prev?.name,
+        email: updated?.personal?.email || prev?.email,
+      }));
+    }
+    return updated;
+  };
+
   const saveDoctorProfile = async (profile) => {
     if (!profile?.id) {
       const response = await api.post("/api/admin/doctors/profile", profile);
@@ -125,13 +147,16 @@ export const AppProvider = ({ children }) => {
     if (!currentUser) return;
 
     if (currentUser.role === "Admin") {
+      setDoctorProfile(null);
       await fetchAdminDoctors();
       await fetchPatients();
     } else if (currentUser.role === "Doctor") {
-      await fetchPatients();
+      await Promise.all([fetchPatients(), fetchDoctorProfile()]);
     } else if (currentUser.role === "Patient") {
+      setDoctorProfile(null);
       await fetchMyPatientRecord();
     } else if (currentUser.role === "PharmacyAdmin") {
+      setDoctorProfile(null);
       await fetchPharmacyInventory();
       await fetchPharmacyDeliveries();
     }
@@ -262,10 +287,17 @@ export const AppProvider = ({ children }) => {
     setPharmacyDeliveries([]);
     setPatients([]);
     setPharmacyInventory([]);
+    setDoctorProfile(null);
   };
   const updatePatientProfile = async (updatedData) => {
     const response = await api.put(`/api/patients/${updatedData.id}`, updatedData);
     setPatients(prev => prev.map(p => p.id === updatedData.id ? response.data : p));
+    if (user?.id === updatedData.id) {
+      setUser((prev) => ({
+        ...prev,
+        name: response.data?.name || prev?.name,
+      }));
+    }
     return response.data;
   };
 
@@ -355,6 +387,7 @@ export const AppProvider = ({ children }) => {
         user,
         doctors,
         patients,
+        doctorProfile,
         medicineMaster,
         missedCases,
         organizations,
@@ -368,6 +401,8 @@ export const AppProvider = ({ children }) => {
         updateProfile,
         saveDoctorProfile,
         fetchDoctorTemplate,
+        fetchDoctorProfile,
+        updateDoctorProfile,
         updatePatientProfile,
         fetchPharmacyInventory,
         createInventoryItem,

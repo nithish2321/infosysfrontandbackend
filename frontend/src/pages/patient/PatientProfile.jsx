@@ -37,8 +37,8 @@ const PatientProfile = () => {
   };
 
   // Helper for input fields
-  const renderInput = (value, field, section = null) => {
-    if (!isEditing) return <p className="font-semibold text-slate-800">{value}</p>;
+  const renderInput = (value, field, section = null, editable = true) => {
+    if (!isEditing || !editable) return <p className="font-semibold text-slate-800">{value}</p>;
     
     return (
       <input 
@@ -123,7 +123,8 @@ const PatientProfile = () => {
               </div>
               <div>
                  <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
-                 {renderInput(formData.contact?.email, "email", "contact")}
+                 {renderInput(formData.contact?.email, "email", "contact", false)}
+                 {isEditing && <p className="text-[11px] text-slate-400 mt-1">Email is managed by account settings.</p>}
               </div>
               <div className="md:col-span-2">
                  <label className="text-xs text-slate-400 font-bold uppercase">Residential Address</label>

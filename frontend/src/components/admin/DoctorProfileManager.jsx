@@ -5,7 +5,6 @@ import {
   GraduationCap, Calendar, FileText, Activity, DollarSign, 
   Shield, BookOpen, Monitor 
 } from "lucide-react";
-import { toast } from "react-hot-toast";
 
 const SECTION_CONFIG = [
   { id: "personal", label: "1. Personal & Identification", icon: <User size={18}/> },
@@ -37,12 +36,12 @@ const DoctorProfileManager = ({ profile, role, onSave, onCancel }) => {
 
   const handleSave = () => {
     onSave(formData);
-    toast.success("Doctor profile updated successfully");
   };
 
   const isEditable = (sectionConfig) => {
     if (role === "Admin") return true;
     if (sectionConfig.adminOnly) return false;
+    if (sectionConfig.id === "performance") return false;
     return true; 
   };
 
@@ -179,6 +178,11 @@ const DoctorProfileManager = ({ profile, role, onSave, onCancel }) => {
                      // Filter out complex objects
                      if (typeof formData[section.id][key] === 'object' && formData[section.id][key] !== null) return null;
                      if (key === "ratingCount" || key === "ratingTotal") return null;
+                     const fieldEditable = !(
+                      role !== "Admin" &&
+                      section.id === "personal" &&
+                      key.toLowerCase() === "email"
+                     ) && canEdit;
 
                      return (
                       <div key={key}>
@@ -186,7 +190,7 @@ const DoctorProfileManager = ({ profile, role, onSave, onCancel }) => {
                           {key.replace(/([A-Z])/g, " $1")}
                         </label>
                         {/* Use the smart renderer instead of hardcoded input */}
-                        {renderField(section.id, key, formData[section.id][key], canEdit)}
+                        {renderField(section.id, key, formData[section.id][key], fieldEditable)}
                       </div>
                     );
                   })}

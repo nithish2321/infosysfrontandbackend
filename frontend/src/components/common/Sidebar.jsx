@@ -7,7 +7,8 @@ import {
   LogOut,
   Users,
   Activity,
-  UserCircle
+  UserCircle,
+  Package
 } from "lucide-react";
 
 const Sidebar = ({ role, onLogout }) => {
@@ -20,17 +21,24 @@ const Sidebar = ({ role, onLogout }) => {
   const doctorLinks = [
     { label: "Dashboard", to: "/", icon: <LayoutDashboard size={18} /> },
     { label: "Statistics", to: "/statistics", icon: <BarChart3 size={18} /> },
+    { label: "My Profile", to: "/profile", icon: <UserCircle size={18} /> },
   ];
 
   const patientLinks = [
     { label: "My Medicines", to: "/", icon: <Pill size={18} /> },
-    //{ label: "My Profile", to: "/profile", icon: <UserCircle size={18} /> },
+    { label: "My Profile", to: "/profile", icon: <UserCircle size={18} /> },
+  ];
+
+  const pharmacyLinks = [
+    { label: "Dashboard", to: "/", icon: <LayoutDashboard size={18} /> },
+    { label: "Inventory", to: "/medicines", icon: <Package size={18} /> },
   ];
 
   let links = [];
   if (role === "Admin") links = adminLinks;
   else if (role === "Doctor") links = doctorLinks;
-  else links = patientLinks;
+  else if (role === "Patient") links = patientLinks;
+  else links = pharmacyLinks;
 
   return (
     <aside className="w-64 bg-white h-screen shadow-xl flex flex-col fixed left-0 top-0 z-20">
